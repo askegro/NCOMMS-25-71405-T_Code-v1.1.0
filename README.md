@@ -1,5 +1,19 @@
 ﻿# Reconfigurable Battery Pack Simulation and Analysis
 
+> **Version 1.1.0 (corrected economic analysis).**
+> This repository holds version 1.1.0 of the code. It corrects the economic
+> post-processing (Figs 4–5 and Supplementary Figs 3–5) and accompanies an
+> Author Correction to the article below, which is under consideration by the
+> journal. The lifetime simulations, the raw data and Figs 1–3 are unchanged.
+> The changes are listed in `CHANGELOG_v1.1.0.md`.
+>
+> The code of the published article is version 1.0.0:
+> [github.com/askegro/NCOMMS-25-71405-T_Code](https://github.com/askegro/NCOMMS-25-71405-T_Code)
+> (tag `v1.0.0`), archived at Zenodo,
+> [doi:10.5281/zenodo.20632594](https://doi.org/10.5281/zenodo.20632594).
+> Once the Author Correction is published, version 1.1.0 will be added to that
+> repository and archived at Zenodo, and this repository will be archived.
+
 This repository contains the complete simulation and postprocessing
 code used in:
 
@@ -67,6 +81,14 @@ cd simulation/files
 % Replace getenv('TMPDIR') with tempdir() in RGM_MATLAB_Main_f.m first
 RGM_MATLAB_Main_f(1, 1, 4, 25, 0.00, 0.20)
 ```
+
+---
+
+## Version 1.1.0: corrections to the economic analysis
+
+Version 1.1.0 corrects the economic post-processing (Figs 4–5, Supplementary Figs 3–5).
+The main correction is that the residual value is now counted once. The lifetime results
+(Figs 1–3) are unchanged. See `CHANGELOG_v1.1.0.md`.
 
 ---
 

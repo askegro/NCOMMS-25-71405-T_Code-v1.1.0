@@ -140,22 +140,22 @@ Post-processing scripts used to generate all figures and the economic analysis i
 
 ---
 ## Cell model references
-The electrical and ageing models are adopted from the sources below without re-identification of parameters.
+The electrical and ageing parameters are taken from the sources below without re-identification.
 
 **LFP electrical model** (OCV, R0, R1, C1 — Sony Murata US26650FTC1):
-> Schimpe, M. et al. Comprehensive Modeling of Temperature-Dependent Degradation Mechanisms in Lithium Iron Phosphate Batteries. *J. Electrochem. Soc.* 165, A181 (2018).
+> Parameter file underlying Schimpe, M. et al. Energy efficiency evaluation of a stationary lithium-ion battery container storage system via electro-thermal modeling and detailed component analysis. *Appl. Energy* 210, 211–229 (2018), https://doi.org/10.1016/j.apenergy.2017.10.129. Provided by M. Schimpe (personal communication, February 2024) and included here with his permission (June 2026). The paper reports the OCV and the total cell resistance (Fig. 5); the split of the total resistance into R0 and one RC element (R1, C1) comes from the unpublished parameter file and was not validated by its author.
 
 **NMC electrical model** (OCV — Sanyo UR18650E):
-> Kabitz, S. *Untersuchung zur Alterung von Lithium-Ionen-Akkumulatoren*. PhD thesis, RWTH Aachen University (2016).
+> Käbitz, S. R. *Untersuchung der Alterung von Lithium-Ionen-Batterien mittels Elektroanalytik und elektrochemischer Impedanzspektroskopie*. PhD thesis, RWTH Aachen University (2016), https://doi.org/10.18154/RWTH-2016-12094 (Table 4.1).
 
 **NMC electrical model** (R0, R1, C1):
-> Engels, S. et al. Techno-Economic Analysis of NMC Battery Storage Systems. (2019).
+> Engels, J., Claessens, B. & Deconinck, G. Techno-economic analysis and optimal control of battery storage for frequency control services, applied to the German market. *Appl. Energy* 242, 1036–1049 (2019).
 
 **LFP calendar ageing model** (capacity fade and resistance increase):
-> Naumann, M. et al. Analysis and modeling of calendar aging of a commercial LiFePO4/graphite cell. *J. Energy Storage* 17, 153–169 (2018).
+> Naumann, M. et al. Analysis and modeling of calendar aging of a commercial LiFePO4/graphite cell. *J. Energy Storage* 17, 153–169 (2018), https://doi.org/10.1016/j.est.2018.01.019.
 
 **LFP cycle ageing model**:
-> Naumann, M. et al. Empirical modeling of lithium-ion battery aging. *J. Energy Storage* 29, 101357 (2020).
+> Naumann, M., Spingler, F. B. & Jossen, A. Analysis and modeling of cycle aging of a commercial LiFePO4/graphite cell. *J. Power Sources* 451, 227666 (2020), https://doi.org/10.1016/j.jpowsour.2019.227666.
 
 **NMC ageing model** (calendar and cycle, capacity fade and resistance increase):
 > Schmalstieg, J. et al. A holistic aging model for Li(NiMnCo)O2 based 18650 lithium-ion batteries. *J. Power Sources* 257, 325–334 (2014).

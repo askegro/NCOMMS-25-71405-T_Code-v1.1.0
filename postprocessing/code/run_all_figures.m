@@ -20,6 +20,7 @@ function run_all_figures
     % % --- Fig 5 (cost + sensitivity analysis; paper Figs 4 & 5) ---
     cd(fullfile(CODE_DIR, 'fig4-5'));
     Fig4_5_SuppFig3_SuppFig4;        
+    fig4_final_layout;
     SuppFig5;
 
     % --- Restore working directory ---

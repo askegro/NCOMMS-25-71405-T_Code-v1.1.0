@@ -7,6 +7,7 @@ close all; clc;
 %% ===== Code Ocean / portable paths setup =====
 ROOT_DIR    = fileparts(CODE_DIR);
 DATA_DIR    = fullfile(ROOT_DIR, 'data');       
+% v1.1.0: corrected economic analysis (see CHANGELOG_v1.1.0.md).
 RESULTS_DIR = fullfile(ROOT_DIR, 'results', 'fig4-5');
 if (~isfolder(RESULTS_DIR))
     mkdir(RESULTS_DIR);
@@ -88,7 +89,7 @@ end
 
 
 %% ===== PRINT SUMMARY TABLES =====
-E_threshold = 50;   % kWh 
+E_threshold = 50;   % kWh: first pack level at or above the pack-energy break-even (46.7 kWh)
 
 fprintf('\n--- Panel (a): Electricity price sensitivity ---\n');
 fprintf('  %-22s  %8s  %8s  %8s  %8s  %10s  %10s\n', ...
@@ -123,7 +124,7 @@ fprintf('\n');
 
 
 %% ===== PRINT SUMMARY TABLES AND SPEARMAN ANALYSIS =====
-E_threshold = 50;   % kWh 
+E_threshold = 50;   % kWh: first pack level at or above the pack-energy break-even (46.7 kWh)
 
 % Parameter names for Spearman analysis
 param_fields = {'E_pack_nom', 'L', 'nu', 'delta_loss', 'r_CBP', ...
@@ -270,6 +271,7 @@ figCombined = figure( ...
     'Units', 'centimeters', ...
     'Position', [2 2 paperWidth paperHeight], ...
     'Color', 'w');
+applyLightTheme(figCombined);   % v1.1.0: light theme for export
 tl = tiledlayout(figCombined, 1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 ylims_shared  = [-3 3.5];
@@ -388,6 +390,22 @@ exportgraphics(figCombined, OUT_PDF, 'ContentType', 'vector', 'BackgroundColor',
 saveas(figCombined, OUT_FIG);
 fprintf('Combined energy sensitivity figure exported to:\n  %s\n', OUT_PDF);
 
+% ===== v1.1.0: scenario statistics written to file =====
+s5stats = struct();
+s5stats.code_version      = 'v1.1.0';
+s5stats.delta_loss_limits = paramRanges.delta_loss.LIMITS;
+s5stats.matlab_version    = version;
+s5stats.electricity_price = summariseEnergyScenarios(c_en_scenarios, labels_en, delta_NPC_en, samples_en, E_threshold);
+s5stats.consumption       = summariseEnergyScenarios(eta_scenarios, labels_eta, delta_NPC_eta, samples_eta, E_threshold);
+s5File = fullfile(RESULTS_DIR, 'summary_statistics_SuppFig5.json');
+fidS5  = fopen(s5File, 'w');
+if fidS5 < 0
+    error('v110:WriteFailed', 'Cannot write %s', s5File);
+end
+fprintf(fidS5, '%s', jsonencode(s5stats, 'PrettyPrint', true));
+fclose(fidS5);
+fprintf('Supplementary Figure 5 statistics written to %s\n', s5File);
+
 
 
 
@@ -433,6 +451,10 @@ function paramsOut = getParams(varargin)
 
     defaultParams.c_res_CBP_EURperkWh = defaultParams.c_res_CBP_USDperkWh * defaultParams.currExch_USDtoEUR;
     defaultParams.c_res_RBP_EURperkWh = defaultParams.c_res_RBP_USDperkWh * defaultParams.currExch_USDtoEUR;
+
+    % v1.1.0: the baseline uses delta_loss = 2 %, the middle of the sampled range
+    % [0.5, 3.5] %; sampled rows override this value.
+    defaultParams.delta_loss = 0.02;
 
     if nargin == 0
         overrideParams = struct();
@@ -495,7 +517,7 @@ function ranges = getParamRanges()
     ranges.Y_EV.LIMITS                    = [15, 20];
     ranges.r_CBP.LIMITS                   = [0.02, 0.04];
     ranges.alpha_CBP.LIMITS               = [0.01, 0.03];
-    ranges.delta_loss.LIMITS              = [0.01, 0.05];
+    ranges.delta_loss.LIMITS              = [0.005, 0.035];   % v1.1.0: added ohmic losses of the RBP
     ranges.L.LIMITS                       = [5000, 70000];
     ranges.nu.LIMITS                      = [0.01, 0.15];
     ranges.E_pack_nom.LIMITS              = [20, 120];
@@ -601,6 +623,9 @@ function [samples_out, delta_NPC_out, results_out, p_out] = sampleDeltaNPC_LHS(r
         results_out(i)     = result_i;
         delta_NPC_out(i)   = result_i.delta_NPC;
     end
+
+    % v1.1.0: store the lifetime extension used for every sample (percent).
+    samples_out.chi_percent = 100 * ([p_out.Y_RBP]' ./ [p_out.Y_CBP]' - 1);
 end
 
 
@@ -623,6 +648,12 @@ function s = getSampleStruct(samples_out, i)
     s.nu         = samples_out.nu(i);
     s.E_pack_nom = samples_out.E_pack_nom(i);
     s.Chemistry  = samples_out.Chemistry(i);
+
+    % v1.1.0: pass the sampled second-life thresholds and the indicator that
+    % switches the lifetime extension chi from its mean to a uniform draw (getParams).
+    s.SOH_EOL_SecondLife_CBP = samples_out.SOH_EOL_SecondLife_CBP(i);
+    s.SOH_EOL_SecondLife_RBP = samples_out.SOH_EOL_SecondLife_RBP(i);
+    s.DefaultIndicator       = samples_out.DefaultIndicator(i);
 end
 
 
@@ -649,11 +680,11 @@ function results = computeNPC_DiscAndNonDisc(params)
 
     Cost_ResidualValue_CBP = computeResidual_DiscAndNonDisc( ...
         params, params.Y_CBP, params.r_CBP, Cost_Init_CBP, ...
-        params.SOH_EOL_FirstLife_CBP, params.SOH_EOL_SecondLife_CBP);
+        params.SOH_EOL_FirstLife_CBP, params.SOH_EOL_SecondLife_CBP, 0);
 
     Cost_ResidualValue_RBP = computeResidual_DiscAndNonDisc( ...
         params, params.Y_RBP, params.r_RBP, Cost_Init_RBP, ...
-        params.SOH_EOL_FirstLife_RBP, params.SOH_EOL_SecondLife_RBP);
+        params.SOH_EOL_FirstLife_RBP, params.SOH_EOL_SecondLife_RBP, params.nu);
 
     cbpInputs = struct( ...
         'Y_EV',             Y_EV, ...
@@ -724,7 +755,11 @@ end
 % -------------------------------------------------------------------------
 % COMPUTERESIDUAL_DISCANDNONDSC
 % -------------------------------------------------------------------------
-function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack, Cost_Init_battPack, SOH_EOL_FirstLife, SOH_EOL_SecondLife)
+function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack, Cost_Init_battPack, SOH_EOL_FirstLife, SOH_EOL_SecondLife, nu_pack)
+    % v1.1.0: nu_pack is the switching surcharge of this pack type (0 for the CBP).
+    if nargin < 7 || isempty(nu_pack)
+        nu_pack = 0;
+    end
     mustHave(params, {'Y_EV','E_pack_nom','c_res_depreccoeff'});
     Y_EV  = params.Y_EV;
     E_nom = params.E_pack_nom;
@@ -754,6 +789,9 @@ function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack,
         if i == 1
             RV_nondiscounted(i)    = SOH_residual(i) * Cost_Init_battPack * params.c_res_depreccoeff;
             Cost_Init_battPack_new = getReplCost(t_replace(i), E_nom);
+            % v1.1.0: resale capital of replacement packs includes the switching
+            % surcharge, consistent with the first pack and with the replacement purchase.
+            Cost_Init_battPack_new = Cost_Init_battPack_new * (1 + nu_pack);
         else
             RV_nondiscounted(i)    = SOH_residual(i) * Cost_Init_battPack_new * params.c_res_depreccoeff;
         end
@@ -821,7 +859,10 @@ function [costs, totalCost, totalCost_nondiscounted, replacementSchedule] = comp
     max_n            = floor(Y_EV / Y_battPack);
     t_replace        = Y_battPack * (1:max_n);
     replacementYears = ceil(t_replace);
-    frac_old         = mod(t_replace, 1);
+    % v1.1.0: fraction of replacement-year index ceil(t) operated with the old
+    % pack. Equals mod(t, 1) for non-integer t and 1 for integer t (e.g. CBP replaced at
+    % exactly t = 10, where year 10 is served entirely by the old pack).
+    frac_old = t_replace - (replacementYears - 1);
     frac_new         = 1 - frac_old;
 
     replacementSchedule.t_replace        = t_replace;
@@ -881,8 +922,12 @@ function [costs, totalCost, totalCost_nondiscounted, replacementSchedule] = comp
         end
     end
 
-    D.totalPerYear  = D.energy + D.oandm + D.replacement + D.residual;
-    ND.totalPerYear = ND.energy + ND.oandm + ND.replacement + ND.residual;
+    % v1.1.0: the residual value is subtracted once, in computeNPC_DiscAndNonDisc
+    % (NPC = C_init + sum of annual costs - RV_total_discounted), as in the Methods NPC
+    % equation. D.residual and ND.residual are kept for the cost-breakdown and
+    % cumulative-NPC plots but no longer enter totalPerYear.
+    D.totalPerYear  = D.energy + D.oandm + D.replacement;
+    ND.totalPerYear = ND.energy + ND.oandm + ND.replacement;
 
     costs                   = struct('discounted', D, 'nondiscounted', ND);
     totalCost               = sum(D.totalPerYear);
@@ -921,3 +966,41 @@ function addPanelLabel(ax, label, offsetX, offsetY, fontSize)
         'HorizontalAlignment', 'left', ...
         'VerticalAlignment',   'top');
 end
+
+
+
+
+function out = summariseEnergyScenarios(values, labels, dNPC_kEUR, samplesCell, E_threshold)
+    % v1.1.0: summary of one scenario set (values in EUR).
+    out = struct('value', {}, 'label', {}, 'median_dNPC_EUR', {}, 'p25_dNPC_EUR', {}, ...
+                 'p75_dNPC_EUR', {}, 'frac_positive', {}, 'frac_positive_E_ge', {}, ...
+                 'frac_positive_E_lt', {}, 'E_threshold_kWh', {});
+    for k = 1:numel(values)
+        d = 1000 * dNPC_kEUR{k};
+        E = samplesCell{k}.E_pack_nom(:);
+        out(k).value              = values(k);
+        out(k).label              = labels{k};
+        out(k).median_dNPC_EUR    = median(d);
+        out(k).p25_dNPC_EUR       = prctile(d, 25);
+        out(k).p75_dNPC_EUR       = prctile(d, 75);
+        out(k).frac_positive      = mean(d > 0);
+        out(k).frac_positive_E_ge = mean(d(E >= E_threshold) > 0);
+        out(k).frac_positive_E_lt = mean(d(E <  E_threshold) > 0);
+        out(k).E_threshold_kWh    = E_threshold;
+    end
+end
+
+
+% -------------------------------------------------------------------------
+% APPLYLIGHTTHEME  (v1.1.0)
+% -------------------------------------------------------------------------
+function applyLightTheme(fig)
+    % Draw and export figures in the light theme, whatever the MATLAB desktop
+    % theme is. The theme() function exists from R2025a; earlier releases
+    % always draw figures in the light theme, so nothing is needed there.
+    if ~isMATLABReleaseOlderThan("R2025a")
+        theme(fig, "light");
+    end
+end
+
+

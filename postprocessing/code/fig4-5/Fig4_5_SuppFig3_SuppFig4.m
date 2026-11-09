@@ -7,7 +7,8 @@ close all; clc;
 %% ===== Code Ocean / portable paths setup =====
 ROOT_DIR = fileparts(CODE_DIR); %fileparts(fileparts(CODE_DIR));
 DATA_DIR = fullfile(ROOT_DIR, 'data');
-RESULTS_DIR = fullfile(ROOT_DIR, 'results', 'fig4-5'); 
+% v1.1.0: corrected economic analysis (see CHANGELOG_v1.1.0.md).
+RESULTS_DIR = fullfile(ROOT_DIR, 'results', 'fig4-5');
 if (~isfolder(RESULTS_DIR))
     mkdir(RESULTS_DIR); 
 end  
@@ -108,6 +109,7 @@ figCosts = figure( ...
     'Units', 'centimeters', ...
     'Position', [2 2 paperWidth paperHeight], ...
     'Color', 'w');
+applyLightTheme(figCosts);   % v1.1.0: light theme for export
 tl_costs = tiledlayout(2, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 % --- Panel (a): Annual cost breakdown, spans full first row ---
@@ -119,8 +121,10 @@ addPanelLabel(axAnnualCost, '(\bfa\rm)', -0.05, 1, 7);
 
 % --- Panel (b): Best-case cumulative NPC ---
 axBestCase = nexttile(tl_costs);
-yLim_axBest   = [10 30];
-yTicks_axBest = [10 15 20 25 30];
+% The best case is a 120 kWh pack driven about 51,500 km/year, whose
+% cumulative NPC reaches about 56 kEUR.
+yLim_axBest   = [0 60];
+yTicks_axBest = [0 20 40 60];
 plotCumulativeNPC_DiscNonDisc_Subplot(axBestCase, resultBest, true, true, "northwest", "Best", resultBest.delta_NPC, yLim_axBest, yTicks_axBest, 'discounted');
 addPanelLabel(axBestCase, '(\bfb\rm)', -0.2, 1, 7);
 
@@ -170,6 +174,7 @@ figSens = figure( ...
     'Units', 'centimeters', ...
     'Position', [2 2 paperWidth paperHeight], ...
     'Color', 'w');
+applyLightTheme(figSens);   % v1.1.0: light theme for export
 tl_sens = tiledlayout(2, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 % --- Panel (a): Global sensitivity ranking (Spearman) ---
@@ -255,12 +260,13 @@ figSuppFigure3 = figure( ...
     'Units', 'centimeters', ...
     'Position', [2 2 paperWidth paperHeight], ...
     'Color', 'w');
+applyLightTheme(figSuppFigure3);   % v1.1.0: light theme for export
 
 tlSupp = tiledlayout(2,3,'TileSpacing','compact','Padding','compact');
 
 axdeltaLoss = nexttile(tlSupp);
-xlims_deltaLoss = [1 5];
-xticks_deltaLoss = 1:1:5;
+xlims_deltaLoss  = [0.5 3.5];          % delta_loss sampled in [0.5, 3.5] %
+xticks_deltaLoss = 0.5:1:3.5;
 [x_zero_delta, R_squared_delta, RMSE_delta] = plot1DWithRegression_Subplot(axdeltaLoss, samples.delta_loss, delta_NPC_kEuros, ...
     '\delta_{loss} [%]', xlims_deltaLoss, xticks_deltaLoss, ...
     ylims_Main, yticks_Main, idx_max, idx_baseline, idx_min, dotSize); 
@@ -341,12 +347,14 @@ figSuppFigure4 = figure( ...
     'Units', 'centimeters', ...
     'Position', [2 2 paperWidth paperHeight], ...
     'Color', 'w');
+applyLightTheme(figSuppFigure4);   % v1.1.0: light theme for export
 tlSupp_2D = tiledlayout(figSuppFigure4, 1, 3, 'TileSpacing','compact','Padding','compact');
 
-xlims = {[0 15.1], [0 15.1], [1 5]};
-ylims = {[4500 82000], [1 5.85714], [4500 82000]};
-xticks = {[0 5 10 15], [0 5 10 15], [1 3 5]};
-yticks = {[10000 30000 50000 70000], [1 3 5], [10000 30000 50000 70000]};
+% delta_loss axes follow the sampled range [0.5, 3.5] %.
+xlims = {[0 15.1], [0 15.1], [0.5 3.5]};
+ylims = {[4500 82000], [0.5 4.142855], [4500 82000]};
+xticks = {[0 5 10 15], [0 5 10 15], [0.5 2 3.5]};
+yticks = {[10000 30000 50000 70000], [0.5 2 3.5], [10000 30000 50000 70000]};
 xVars = {"nu", "nu", "delta_loss"};
 yVars = {"L", "delta_loss", "L"};
 xLabels = {'\nu [%]', '\nu [%]', '\delta_{{loss}} [%]'};
@@ -441,6 +449,60 @@ exportgraphics(figSuppFigure4, OUT_SUPP4_EPS, 'ContentType','vector','Background
 saveas(figSuppFigure4, OUT_SUPP4_FIG);
 fprintf('Supplementary Figure 4 exported.\n');
 
+%% ============================ v1.1.0: HEADLINE STATISTICS ============================
+% All numbers quoted in the paper or a correction notice are written here, so that
+% they come from the run rather than being read off the figures.
+stats = struct();
+stats.code_version          = 'v1.1.0';
+stats.delta_loss_limits     = paramRanges.delta_loss.LIMITS;
+stats.matlab_version        = version;
+stats.n_samples             = n_samples;
+stats.baseline_dNPC_EUR     = baselineNPC;
+stats.baseline_CBP_NPC_EUR  = resultBaseline.CBP.costs.NPC;
+stats.baseline_RBP_NPC_EUR  = resultBaseline.RBP.costs.NPC;
+stats.baseline_saving_pct_of_CBP_NPC     = 100 * baselineNPC / resultBaseline.CBP.costs.NPC;
+stats.baseline_saving_pct_of_CBP_upfront = 100 * baselineNPC / resultBaseline.CBP.costs.InitCost;
+stats.best_dNPC_EUR         = 1000 * maxNPC;
+stats.worst_dNPC_EUR        = 1000 * minNPC;
+stats.median_dNPC_EUR       = median(delta_NPC);
+stats.p25_dNPC_EUR          = prctile(delta_NPC, 25);
+stats.p75_dNPC_EUR          = prctile(delta_NPC, 75);
+stats.frac_positive         = mean(delta_NPC > 0);
+isLargePack                 = samples.E_pack_nom(:) >= 50;
+stats.frac_positive_E_ge_50 = mean(delta_NPC(isLargePack) > 0);
+stats.frac_positive_E_lt_50 = mean(delta_NPC(~isLargePack) > 0);
+isLFP                       = (samples.Chemistry(:) == "LFP");
+stats.median_dNPC_LFP_EUR   = median(delta_NPC(isLFP));
+stats.median_dNPC_NMC_EUR   = median(delta_NPC(~isLFP));
+stats.breakeven_E_kWh       = x_zero_E;
+stats.breakeven_L_km        = x_zero_L;
+stats.breakeven_nu          = x_zero_nu;      % fraction (not percent)
+stats.breakeven_delta_loss  = x_zero_delta;   % fraction (not percent)
+stats.fig5_rect997_nu_max   = nu_best;        % fraction (not percent)
+stats.fig5_rect997_L_max    = L_best;
+for iRect = 1:numel(rectResults)
+    stats.suppfig4_rect997(iRect).xVar  = char(rectResults(iRect).xVar);
+    stats.suppfig4_rect997(iRect).yVar  = char(rectResults(iRect).yVar);
+    stats.suppfig4_rect997(iRect).x_max = rectResults(iRect).main.x_max;
+    stats.suppfig4_rect997(iRect).y_max = rectResults(iRect).main.y_max;
+    stats.suppfig4_rect997(iRect).rate  = rectResults(iRect).main.rate;
+end
+spearmanVars = {'E_pack_nom', 'L', 'nu', 'delta_loss', 'Y_EV', 'r_CBP', 'alpha_CBP', ...
+                'SOH_EOL_SecondLife_CBP', 'SOH_EOL_SecondLife_RBP', 'chi_percent'};
+for iVar = 1:numel(spearmanVars)
+    vSp = samples.(spearmanVars{iVar});
+    stats.spearman_rho.(spearmanVars{iVar}) = corr(vSp(:), delta_NPC(:), 'Type', 'Spearman');
+end
+statsFile = fullfile(RESULTS_DIR, 'summary_statistics.json');
+fidStats  = fopen(statsFile, 'w');
+if fidStats < 0
+    error('v110:WriteFailed', 'Cannot write %s', statsFile);
+end
+fprintf(fidStats, '%s', jsonencode(stats, 'PrettyPrint', true));
+fclose(fidStats);
+save(fullfile(RESULTS_DIR, 'samples_dNPC.mat'), 'samples', 'delta_NPC', 'stats');
+fprintf('Headline statistics written to %s\n', statsFile);
+
 figs = findall(0, 'Type', 'figure');
 close(setdiff(figs, [figCosts, figSens, figSuppFigure3, figSuppFigure4]));
 fprintf('All done. Results saved under "%s/".\n\n', RESULTS_DIR);
@@ -485,6 +547,10 @@ function paramsOut = getParams(varargin)
     % Derived
     defaultParams.c_res_CBP_EURperkWh = defaultParams.c_res_CBP_USDperkWh * defaultParams.currExch_USDtoEUR;
     defaultParams.c_res_RBP_EURperkWh = defaultParams.c_res_RBP_USDperkWh * defaultParams.currExch_USDtoEUR;
+
+    % v1.1.0: the baseline uses delta_loss = 2 %, the middle of the sampled range
+    % [0.5, 3.5] %; sampled rows override this value.
+    defaultParams.delta_loss = 0.02;
 
     if nargin == 0 
         overrideParams = struct(); 
@@ -549,7 +615,7 @@ function ranges = getParamRanges()
     ranges.Y_EV.LIMITS                  = [15, 20];
     ranges.r_CBP.LIMITS                 = [0.02, 0.04];
     ranges.alpha_CBP.LIMITS             = [0.01, 0.03];
-    ranges.delta_loss.LIMITS            = [0.01, 0.05];
+    ranges.delta_loss.LIMITS            = [0.005, 0.035];   % v1.1.0: added ohmic losses of the RBP
     ranges.L.LIMITS                     = [5000, 70000];
     ranges.nu.LIMITS                    = [0.01, 0.15];
     ranges.E_pack_nom.LIMITS            = [20, 120];
@@ -617,7 +683,8 @@ function results = computeNPC_DiscAndNonDisc(params)
         params.r_CBP, ...
         Cost_Init_CBP, ...
         params.SOH_EOL_FirstLife_CBP, ...
-        params.SOH_EOL_SecondLife_CBP);
+        params.SOH_EOL_SecondLife_CBP, ...
+        0);
 
     Cost_ResidualValue_RBP = computeResidual_DiscAndNonDisc( ...
         params, ...
@@ -625,7 +692,8 @@ function results = computeNPC_DiscAndNonDisc(params)
         params.r_RBP, ...
         Cost_Init_RBP, ...
         params.SOH_EOL_FirstLife_RBP, ...
-        params.SOH_EOL_SecondLife_RBP);
+        params.SOH_EOL_SecondLife_RBP, ...
+        params.nu);
 
     cbpInputs = struct( ...
         'Y_EV', Y_EV, ...
@@ -697,7 +765,11 @@ end
 % -------------------------------------------------------------------------
 % COMPUTERESIDUAL_DISCANDNONDSC
 % -------------------------------------------------------------------------
-function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack, Cost_Init_battPack, SOH_EOL_FirstLife, SOH_EOL_SecondLife)
+function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack, Cost_Init_battPack, SOH_EOL_FirstLife, SOH_EOL_SecondLife, nu_pack)
+    % v1.1.0: nu_pack is the switching surcharge of this pack type (0 for the CBP).
+    if nargin < 7 || isempty(nu_pack)
+        nu_pack = 0;
+    end
     mustHave(params, {'Y_EV','E_pack_nom','c_res_depreccoeff'});
     Y_EV  = params.Y_EV;
     E_nom = params.E_pack_nom;
@@ -730,6 +802,9 @@ function output = computeResidual_DiscAndNonDisc(params, Y_battPack, r_battPack,
         if (i == 1)
             RV_nondiscounted(i) = SOH_residual(i) * Cost_Init_battPack * params.c_res_depreccoeff;
             Cost_Init_battPack_new  = getReplCost(t_replace(i), E_nom);
+            % v1.1.0: resale capital of replacement packs includes the switching
+            % surcharge, consistent with the first pack and with the replacement purchase.
+            Cost_Init_battPack_new = Cost_Init_battPack_new * (1 + nu_pack);
         else
             RV_nondiscounted(i)  = SOH_residual(i) * Cost_Init_battPack_new * params.c_res_depreccoeff;            
         end
@@ -802,7 +877,10 @@ function [costs, totalCost, totalCost_nondiscounted, replacementSchedule] = comp
     max_n         = floor(Y_EV / Y_battPack);
     t_replace     = Y_battPack * (1:max_n);
     replacementYears = ceil(t_replace);
-    frac_old      = mod(t_replace, 1);
+    % v1.1.0: fraction of replacement-year index ceil(t) operated with the old
+    % pack. Equals mod(t, 1) for non-integer t and 1 for integer t (e.g. CBP replaced at
+    % exactly t = 10, where year 10 is served entirely by the old pack).
+    frac_old = t_replace - (replacementYears - 1);
     frac_new      = 1 - frac_old;
 
     replacementSchedule.t_replace        = t_replace;
@@ -864,8 +942,12 @@ function [costs, totalCost, totalCost_nondiscounted, replacementSchedule] = comp
         end
     end
 
-    D.totalPerYear  = D.energy + D.oandm + D.replacement + D.residual;
-    ND.totalPerYear = ND.energy + ND.oandm + ND.replacement + ND.residual;
+    % v1.1.0: the residual value is subtracted once, in computeNPC_DiscAndNonDisc
+    % (NPC = C_init + sum of annual costs - RV_total_discounted), as in the Methods NPC
+    % equation. D.residual and ND.residual are kept for the cost-breakdown and
+    % cumulative-NPC plots but no longer enter totalPerYear.
+    D.totalPerYear  = D.energy + D.oandm + D.replacement;
+    ND.totalPerYear = ND.energy + ND.oandm + ND.replacement;
 
     costs.discounted    = D;
     costs.nondiscounted = ND;
@@ -941,6 +1023,9 @@ function [samples_out, delta_NPC_out, results_out, p_out] = sampleDeltaNPC_LHS(r
         results_out(i)   = result_i;
         delta_NPC_out(i) = result_i.delta_NPC;
     end
+
+    % v1.1.0: store the lifetime extension used for every sample (percent).
+    samples_out.chi_percent = 100 * ([p_out.Y_RBP]' ./ [p_out.Y_CBP]' - 1);
 end
 
 
@@ -963,6 +1048,12 @@ function s = getSampleStruct(samples_out, i)
     s.nu         = samples_out.nu(i);
     s.E_pack_nom = samples_out.E_pack_nom(i);
     s.Chemistry  = samples_out.Chemistry(i);
+
+    % v1.1.0: pass the sampled second-life thresholds and the indicator that
+    % switches the lifetime extension chi from its mean to a uniform draw (getParams).
+    s.SOH_EOL_SecondLife_CBP = samples_out.SOH_EOL_SecondLife_CBP(i);
+    s.SOH_EOL_SecondLife_RBP = samples_out.SOH_EOL_SecondLife_RBP(i);
+    s.DefaultIndicator       = samples_out.DefaultIndicator(i);
 end
 
 
@@ -1138,6 +1229,13 @@ function plotCumulativeNPC_DiscNonDisc_Subplot(ax, results, yLabelOn, legendOn, 
     hFinalRBP = plot(ax, x_base(end), cum_RBP(end), '*', 'MarkerSize', 10, 'LineWidth', 1, 'Color', col_RBP);
 
     haveBreakEven = ~isempty(idx_cross) && idx_cross < Y_full;
+    if delta_curve(end) <= 0
+        % The last sign change is only a break-even if the RBP ends up
+        % cheaper. In the worst case the RBP is briefly cheaper after the
+        % CBP replacement (years 10-11) and loses that at its own replacement,
+        % so the last crossing is where the advantage is lost, not a break-even.
+        haveBreakEven = false;
+    end
     if haveBreakEven
         x1 = years_full(idx_cross);   x2 = years_full(idx_cross+1);
         y1 = delta_curve(idx_cross);  y2 = delta_curve(idx_cross+1);
@@ -2065,4 +2163,20 @@ function [x_best, y_best, success_rate_best, rectEdges, altRectEdges, ...
     lgd.ItemTokenSize = [12, 6];
     
     hold(axRect,'off');
+end
+
+
+
+
+
+% -------------------------------------------------------------------------
+% APPLYLIGHTTHEME  (v1.1.0)
+% -------------------------------------------------------------------------
+function applyLightTheme(fig)
+    % Draw and export figures in the light theme, whatever the MATLAB desktop
+    % theme is. The theme() function exists from R2025a; earlier releases
+    % always draw figures in the light theme, so nothing is needed there.
+    if ~isMATLABReleaseOlderThan("R2025a")
+        theme(fig, "light");
+    end
 end
